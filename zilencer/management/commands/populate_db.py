@@ -21,6 +21,7 @@ from typing_extensions import override
 
 from scripts.lib.zulip_tools import get_or_create_dev_uuid_var_path
 from zerver.actions.create_realm import do_create_realm
+from zerver.actions.create_user import do_create_user
 from zerver.actions.custom_profile_fields import (
     do_update_user_custom_profile_data_if_changed,
     try_add_realm_custom_profile_field,
@@ -37,7 +38,11 @@ from zerver.actions.users import do_change_user_role
 from zerver.lib.bulk_create import bulk_create_streams
 from zerver.lib.generate_test_data import create_test_data, generate_topics
 from zerver.lib.management import ZulipBaseCommand
-from zerver.lib.onboarding import create_if_missing_realm_internal_bots
+from zerver.lib.onboarding import (
+    create_if_missing_realm_internal_bots,
+    send_initial_direct_message,
+    send_initial_realm_messages,
+)
 from zerver.lib.push_notifications import logger as push_notifications_logger
 from zerver.lib.remote_server import get_realms_info_for_push_bouncer
 from zerver.lib.server_initialization import create_internal_realm, create_users
@@ -355,6 +360,12 @@ class Command(ZulipBaseCommand):
             )
             realm_user_default.save()
 
+            user = do_create_user(
+                "iago@zulip.com", "password", zulip_realm, "Iago", acting_user=None
+            )
+            send_initial_direct_message(user)
+            send_initial_realm_messages(zulip_realm)
+
             if options["test_suite"]:
                 mit_realm = do_create_realm(
                     string_id="zephyr",
@@ -365,6 +376,12 @@ class Command(ZulipBaseCommand):
                     org_type=Realm.ORG_TYPES["business"]["id"],
                 )
                 RealmDomain.objects.create(realm=mit_realm, domain="mit.edu")
+
+                user = do_create_user(
+                    "iago@zulip.com", "password", mit_realm, "Iago", acting_user=None
+                )
+                send_initial_direct_message(user)
+                send_initial_realm_messages(mit_realm)
 
                 lear_realm = do_create_realm(
                     string_id="lear",
